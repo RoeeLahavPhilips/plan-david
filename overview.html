@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מבט-על — תכנית דוד</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #1a1a2e; color: #eee; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+.top-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: #16213e; border-bottom: 1px solid #2a3a5a; flex-shrink: 0; }
+.top-bar h1 { font-size: 1.1em; color: #fff; }
+.top-bar .stats { display: flex; gap: 16px; }
+.stat { text-align: center; }
+.stat .val { font-size: 1.2em; font-weight: 700; }
+.stat .lbl { font-size: 0.6em; color: #8899aa; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.status-bar { display: flex; justify-content: center; gap: 24px; padding: 8px 20px; background: #0f1419; border-bottom: 1px solid #2a3a5a; flex-shrink: 0; }
+.status-pill { display: flex; align-items: center; gap: 6px; font-size: 0.8em; font-weight: 600; }
+.status-pill .dot { width: 12px; height: 12px; border-radius: 50%; }
+.status-pill .dot.green { background: #43a047; }
+.status-pill .dot.yellow { background: #fdd835; }
+.status-pill .dot.red { background: #e53935; }
+
+.grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; padding: 10px; overflow-y: auto; align-content: start; }
+
+.tile { border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; position: relative; min-height: 175px; transition: transform 0.15s, box-shadow 0.15s; cursor: default; }
+.tile:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); z-index: 2; }
+
+.tile.c-ashtrom { background: linear-gradient(135deg, #1b5e20, #2e7d32); }
+.tile.c-danya { background: linear-gradient(135deg, #0d47a1, #1565c0); }
+.tile.c-manrav { background: linear-gradient(135deg, #4a148c, #6a1b9a); }
+.tile.c-rotshtein { background: linear-gradient(135deg, #b71c1c, #d32f2f); }
+.tile.c-forma { background: linear-gradient(135deg, #e65100, #f57c00); }
+.tile.c-electra { background: linear-gradient(135deg, #006064, #00838f); }
+.tile.c-yaakovi { background: linear-gradient(135deg, #1a237e, #283593); }
+.tile.c-harsuf { background: linear-gradient(135deg, #3e2723, #5d4037); }
+.tile.c-lovinstein { background: linear-gradient(135deg, #880e4f, #ad1457); }
+.tile.c-yitzhaki { background: linear-gradient(135deg, #ff6f00, #ff8f00); }
+.tile.c-gavai { background: linear-gradient(135deg, #4e342e, #6d4c41); }
+
+.tile-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.tile-name { font-size: 0.85em; font-weight: 700; color: #fff; line-height: 1.3; max-width: 78%; }
+
+/* Status button - clickable */
+.tile-status-btn { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+.tile-status-btn.green { background: #43a047; box-shadow: 0 0 6px #43a047; }
+.tile-status-btn.yellow { background: #fdd835; box-shadow: 0 0 6px #fdd835; }
+.tile-status-btn.red { background: #e53935; box-shadow: 0 0 6px #e53935; }
+.tile-status-btn:hover { transform: scale(1.3); }
+
+.tile-client { font-size: 0.65em; color: rgba(255,255,255,0.75); font-weight: 600; margin-bottom: 4px; }
+.tile-desc { font-size: 0.62em; color: rgba(255,255,255,0.55); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 6px; }
+
+.tile-data { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.data-item { display: flex; flex-direction: column; align-items: center; }
+.data-item .d-val { font-size: 0.88em; font-weight: 700; color: #fff; }
+.data-item .d-lbl { font-size: 0.55em; color: rgba(255,255,255,0.5); }
+.placeholder { color: #6b7b8a !important; }
+.placeholder-bg { background: rgba(107,123,138,0.25); border-radius: 3px; padding: 0 3px; }
+
+.tile-timeline { margin-top: auto; }
+.tbar-header { display: flex; justify-content: space-between; margin-bottom: 3px; }
+.tbar-header span { font-size: 0.6em; color: rgba(255,255,255,0.5); }
+.tbar { height: 5px; background: rgba(255,255,255,0.12); border-radius: 3px; overflow: hidden; }
+.tbar .tfill { height: 100%; border-radius: 3px; }
+.tbar .tfill.green { background: linear-gradient(90deg, #66bb6a, #43a047); }
+.tbar .tfill.yellow { background: linear-gradient(90deg, #fff176, #fdd835); }
+.tbar .tfill.red { background: linear-gradient(90deg, #ef5350, #c62828); }
+
+/* Note */
+.tile-note { margin-top: 6px; font-size: 0.6em; color: rgba(255,255,255,0.7); background: rgba(0,0,0,0.2); border-radius: 4px; padding: 3px 6px; cursor: pointer; min-height: 18px; word-break: break-word; }
+.tile-note:empty::before { content: '+ הוסף הערה...'; color: rgba(255,255,255,0.35); }
+.tile-note:focus { outline: 1px solid rgba(255,255,255,0.4); background: rgba(0,0,0,0.35); color: #fff; }
+
+.tile-pm { font-size: 0.6em; color: rgba(255,255,255,0.5); margin-top: 4px; }
+.tile-id { position: absolute; top: 6px; left: 8px; font-size: 0.55em; color: rgba(255,255,255,0.25); font-weight: 700; }
+
+.legend-bar { display: flex; justify-content: center; gap: 10px; padding: 8px; background: #16213e; border-top: 1px solid #2a3a5a; flex-shrink: 0; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.65em; color: #8899aa; }
+.legend-swatch { width: 10px; height: 10px; border-radius: 3px; }
+.legend-swatch.c-ashtrom { background: #2e7d32; }
+.legend-swatch.c-danya { background: #1565c0; }
+.legend-swatch.c-manrav { background: #6a1b9a; }
+.legend-swatch.c-rotshtein { background: #d32f2f; }
+.legend-swatch.c-forma { background: #f57c00; }
+.legend-swatch.c-electra { background: #00838f; }
+.legend-swatch.c-yaakovi { background: #283593; }
+.legend-swatch.c-harsuf { background: #5d4037; }
+.legend-swatch.c-lovinstein { background: #ad1457; }
+.legend-swatch.c-yitzhaki { background: #ff8f00; }
+.legend-swatch.c-gavai { background: #6d4c41; }
+.legend-sep { width: 1px; height: 14px; background: #2a3a5a; margin: 0 4px; }
+.legend-note { font-size: 0.6em; color: #6b7b8a; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+<h1>מבט-על — תכנית דוד</h1>
+<div class="stats">
+<div class="stat"><div class="val" style="color:#4fc3f7;">31</div><div class="lbl">פרויקטים</div></div>
+<div class="stat"><div class="val" style="color:#81c784;">3,688</div><div class="lbl">יח"ד</div></div>
+<div class="stat"><div class="val" style="color:#ce93d8;" id="totalPeople">—</div><div class="lbl">עובדים</div></div>
+</div>
+</div>
+
+<div class="status-bar">
+<div class="status-pill"><div class="dot green"></div><span id="countGreen">0</span> תקין</div>
+<div class="status-pill"><div class="dot yellow"></div><span id="countYellow">0</span> בסיכון</div>
+<div class="status-pill"><div class="dot red"></div><span id="countRed">0</span> באיחור</div>
+<span style="font-size:0.65em;color:#5a6b7a;margin-right:12px;">לחץ על העיגול לשנות סטטוס · לחץ על הערה לעריכה</span>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="legend-bar">
+<div class="legend-item"><div class="legend-swatch c-ashtrom"></div>אשטרום</div>
+<div class="legend-item"><div class="legend-swatch c-danya"></div>דניה סיבוס</div>
+<div class="legend-item"><div class="legend-swatch c-manrav"></div>מנרב</div>
+<div class="legend-item"><div class="legend-swatch c-rotshtein"></div>רוטשטיין</div>
+<div class="legend-item"><div class="legend-swatch c-forma"></div>פורמה</div>
+<div class="legend-item"><div class="legend-swatch c-electra"></div>אלקטרה</div>
+<div class="legend-item"><div class="legend-swatch c-yaakovi"></div>יעקבי</div>
+<div class="legend-item"><div class="legend-swatch c-harsuf"></div>הר סוף</div>
+<div class="legend-item"><div class="legend-swatch c-lovinstein"></div>לוינשטיין</div>
+<div class="legend-item"><div class="legend-swatch c-yitzhaki"></div>יצחקי / גבאי</div>
+<div class="legend-sep"></div>
+<div class="legend-note">אפור כהה = נתון זמני | שינויים נשמרים מקומית</div>
+</div>
+
+<script>
+function seededRandom(seed) { let x = Math.sin(seed) * 10000; return x - Math.floor(x); }
+
+const projects = [
+  { id:1, name:'עץ החיים ירושלים', client:'אשטרום', pm:'מאגד אבו שריף', desc:'מרתפים 7 קומות + 2 מגדלים 30 קומות', units:null },
+  { id:2, name:'מאז"ה', client:'אשטרום', pm:'באהה כאטר', desc:'מרתף 3 קומות, ביה"ס 5 קומות, מגדל 42 קומות', units:268 },
+  { id:3, name:'חצרים', client:'מנרב', pm:'אייל פאטורי', desc:'מבנה הסעדה, הדרכה, מגורים ומתחם טכני', units:null },
+  { id:4, name:'קרסו וייצמן חולון', client:'דניה סיבוס', pm:'מרעי', desc:'מרתפים + 9 קומות 110 יח"ד', units:110 },
+  { id:5, name:'קרסו הולצברג בת ים', client:'דניה סיבוס', pm:'מגד', desc:'2 בניינים 9 קומות 73 יח"ד', units:73 },
+  { id:6, name:'גליל ים', client:'דניה סיבוס', pm:'משה', desc:'6 בניינים 11-12 קומות 253 יח"ד', units:253 },
+  { id:7, name:'הר נוף ירושלים', client:'דניה סיבוס', pm:'יזיד אבו שריף', desc:'3 בניינים 9 קומות + 18 קומות 237 יח"ד', units:237 },
+  { id:8, name:'שנקר חולון', client:'דניה סיבוס', pm:'מאגד', desc:'4 מרתפים, 4 בניינים 9 קומות 168 יח"ד', units:168 },
+  { id:9, name:'מרלוג פוקס בית שמש', client:'דניה סיבוס', pm:'וואהל', desc:'שטח מסחרי', units:null },
+  { id:10, name:'עיר עולם', client:'דניה סיבוס', pm:'—', desc:'3 מגדלים 31 קומות 299 יח"ד', units:299 },
+  { id:11, name:'חנקין חולון', client:'דניה סיבוס', pm:'—', desc:'מגדל 28 קומות 130 יח"ד + מסחרי', units:130 },
+  { id:12, name:'עצמאות 28 בת ים', client:'לוינשטיין נתיב', pm:'אנס', desc:'מרתפים, מסחר, 5 קומות 120 יח"ד', units:120 },
+  { id:13, name:'הרצל 66 בלו סיטי', client:'אשטרום', pm:'אנס', desc:'מגדל 35 קומות + 5 מרתפים 137 יח"ד', units:137 },
+  { id:14, name:'מרים החשמונאית', client:'אשטרום', pm:'יזיד אבו שריף', desc:'4 בניינים 7 קומות 104 יח"ד', units:104 },
+  { id:15, name:'פרויקט לוד', client:'יעקבי יוניברסל', pm:'סאמר', desc:'7 בניינים 232 יח"ד', units:232 },
+  { id:16, name:'פרויקט פ"ת', client:'יעקבי יוניברסל', pm:'דובב', desc:'15 קומות 53 יח"ד', units:53 },
+  { id:17, name:'הברון הירש', client:'פורמה', pm:'כרים', desc:'3 בניינים 2 מרתפים 134 יח"ד', units:134 },
+  { id:18, name:'בת ים הפרדס', client:'פורמה', pm:'באהה כאטר', desc:'2 בניינים 15 קומות 123 יח"ד', units:123 },
+  { id:19, name:'כפר אזר 123', client:'אלקטרה', pm:'אבו לאבן', desc:'2 בניינים + וילות 84 יח"ד', units:84 },
+  { id:20, name:'כפר אזר 116', client:'אלקטרה', pm:'אבו לאבן', desc:'3 בניינים + וילות 88 יח"ד', units:88 },
+  { id:21, name:'חרמון לוד', client:'רוטשטיין', pm:'סאמר', desc:'2 בניינים 10+18 קומות 138 יח"ד', units:138 },
+  { id:22, name:'יבנה רמת השרון', client:'רוטשטיין', pm:'משה', desc:'6 בניינים 9 קומות 180 יח"ד', units:180 },
+  { id:23, name:'כרמי הנדיב ק. מלאכי', client:'רוטשטיין', pm:'סאמר', desc:'4 בניינים 8-22 קומות 208 יח"ד', units:208 },
+  { id:24, name:'מגרש 105', client:'הר סוף', pm:'וואהל', desc:'11 דירות', units:11 },
+  { id:25, name:'קוטגים', client:'הר סוף', pm:'וואהל', desc:'21 יחידות', units:21 },
+  { id:26, name:'מגרש 259 מזכרת בתיה', client:'הר סוף', pm:'וואהל', desc:'מזכרת בתיה', units:null },
+  { id:27, name:'מגרש 84 מזכרת בתיה', client:'הר סוף', pm:'וואהל', desc:'מזכרת בתיה', units:null },
+  { id:28, name:'מגרש 19-20 מסחרי', client:'הר סוף', pm:'וואהל', desc:'סופר רמי לוי 13,000 מ"ר', units:null },
+  { id:29, name:'מגרש 504 מסחרי', client:'הר סוף', pm:'וואהל', desc:'סופר + מסחרי 22,000 מ"ר', units:null },
+  { id:30, name:'מגדל לאון ת"א', client:'יצחקי מלונות', pm:'אולג', desc:'19 קומות מלון 238 חדרים', units:238 },
+  { id:31, name:'לידו אשדוד', client:'קבוצת גבאי', pm:'אולג', desc:'105 דירות + 208 חדרי מלון', units:313 },
+];
+
+// Generate placeholder data
+projects.forEach(p => {
+  const r1 = seededRandom(p.id * 7);
+  const r2 = seededRandom(p.id * 13);
+  const r3 = seededRandom(p.id * 19);
+  p.people = Math.floor(r1 * 90) + 5;
+  p.peopleStr = String(p.people).padStart(3, '0');
+  if (r2 < 0.2) p.status = 'red';
+  else if (r2 < 0.5) p.status = 'yellow';
+  else p.status = 'green';
+  const monthsFromNow = Math.floor(r3 * 30) + 6;
+  const due = new Date(); due.setMonth(due.getMonth() + monthsFromNow);
+  p.dueDate = due.toISOString().slice(0,10);
+  p.dueMonths = monthsFromNow;
+  p.progress = Math.min(95, Math.max(5, Math.round(((36 - monthsFromNow) / 36) * 100)));
+  p.note = '';
+});
+
+// Load saved state from localStorage
+const saved = JSON.parse(localStorage.getItem('planDavid_overview') || '{}');
+projects.forEach(p => {
+  if (saved[p.id]) {
+    if (saved[p.id].status) p.status = saved[p.id].status;
+    if (saved[p.id].note) p.note = saved[p.id].note;
+  }
+});
+
+function saveState() {
+  const state = {};
+  projects.forEach(p => { state[p.id] = { status: p.status, note: p.note }; });
+  localStorage.setItem('planDavid_overview', JSON.stringify(state));
+}
+
+function getClientClass(client) {
+  if (client.includes('אשטרום')) return 'c-ashtrom';
+  if (client.includes('דניה')) return 'c-danya';
+  if (client.includes('מנרב')) return 'c-manrav';
+  if (client.includes('רוטשטיין')) return 'c-rotshtein';
+  if (client.includes('פורמה')) return 'c-forma';
+  if (client.includes('אלקטרה')) return 'c-electra';
+  if (client.includes('יעקבי')) return 'c-yaakovi';
+  if (client.includes('הר סוף')) return 'c-harsuf';
+  if (client.includes('לוינשטיין')) return 'c-lovinstein';
+  if (client.includes('יצחקי')) return 'c-yitzhaki';
+  if (client.includes('גבאי')) return 'c-gavai';
+  return 'c-other';
+}
+
+function formatMonth(dateStr) {
+  const months = ['ינו','פבר','מרץ','אפר','מאי','יונ','יול','אוג','ספט','אוק','נוב','דצמ'];
+  const d = new Date(dateStr);
+  return `${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function cycleStatus(id) {
+  const p = projects.find(x => x.id === id);
+  const order = ['green','yellow','red'];
+  const idx = order.indexOf(p.status);
+  p.status = order[(idx + 1) % 3];
+  saveState();
+  render();
+}
+
+function updateNote(id, text) {
+  const p = projects.find(x => x.id === id);
+  p.note = text;
+  saveState();
+}
+
+function render() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = projects.map(p => {
+    const cc = getClientClass(p.client);
+    const unitsText = p.units ? p.units + ' יח"ד' : '—';
+    const barColor = p.status;
+    return `
+      <div class="tile ${cc}">
+        <span class="tile-id">#${p.id}</span>
+        <div class="tile-header">
+          <div class="tile-name">${p.name}</div>
+          <div class="tile-status-btn ${p.status}" onclick="cycleStatus(${p.id})" title="לחץ לשנות סטטוס"></div>
+        </div>
+        <div class="tile-client">${p.client}</div>
+        <div class="tile-desc">${p.desc}</div>
+        <div class="tile-data">
+          <div class="data-item"><span class="d-val placeholder"><span class="placeholder-bg">${p.peopleStr}</span></span><span class="d-lbl">עובדים</span></div>
+          <div class="data-item"><span class="d-val">${unitsText}</span><span class="d-lbl">יח"ד</span></div>
+          <div class="data-item"><span class="d-val placeholder"><span class="placeholder-bg">${p.dueMonths} חוד׳</span></span><span class="d-lbl">לסיום</span></div>
+        </div>
+        <div class="tile-timeline">
+          <div class="tbar-header"><span>לו"ז</span><span class="placeholder">${formatMonth(p.dueDate)}</span></div>
+          <div class="tbar"><div class="tfill ${barColor}" style="width:${p.progress}%"></div></div>
+        </div>
+        <div class="tile-note" contenteditable="true" data-id="${p.id}" onblur="updateNote(${p.id}, this.textContent)">${p.note}</div>
+        <div class="tile-pm">מנהל: ${p.pm}</div>
+      </div>`;
+  }).join('');
+  updateStats();
+}
+
+function updateStats() {
+  document.getElementById('totalPeople').textContent = projects.reduce((s,p) => s + p.people, 0);
+  document.getElementById('countGreen').textContent = projects.filter(p => p.status === 'green').length;
+  document.getElementById('countYellow').textContent = projects.filter(p => p.status === 'yellow').length;
+  document.getElementById('countRed').textContent = projects.filter(p => p.status === 'red').length;
+}
+
+render();
+</script>
+</body>
+</html>
