@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>תכנית דוד — מפת פרויקטים</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #0f1419; }
+
+.top-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: #16213e; border-bottom: 2px solid #2a3a5a; flex-shrink: 0; z-index: 1000; }
+.top-bar h1 { font-size: 1.1em; color: #fff; }
+.top-bar .stats { display: flex; gap: 20px; }
+.stat { text-align: center; }
+.stat .val { font-size: 1.1em; font-weight: 700; color: #4fc3f7; }
+.stat .lbl { font-size: 0.6em; color: #8899aa; text-transform: uppercase; }
+
+#map { flex: 1; z-index: 1; }
+
+/* Popup */
+.leaflet-popup-content-wrapper { border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.leaflet-popup-content { direction: rtl; font-family: 'Segoe UI', Tahoma, sans-serif; min-width: 240px; padding: 4px; }
+.popup-title { font-size: 1.05em; font-weight: 700; color: #1a2332; margin-bottom: 4px; }
+.popup-client { font-size: 0.8em; color: #1565c0; font-weight: 600; margin-bottom: 8px; }
+.popup-desc { font-size: 0.78em; color: #5a6b7a; margin-bottom: 10px; line-height: 1.4; }
+
+.popup-data { background: #f5f7fa; border-radius: 6px; padding: 10px; margin-bottom: 8px; }
+.popup-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #e0e6ed; }
+.popup-row:last-child { border-bottom: none; }
+.popup-row .label { font-size: 0.75em; color: #5a6b7a; }
+.popup-row .value { font-size: 0.8em; font-weight: 700; color: #1a2332; }
+.popup-row .value.urgent { color: #c62828; }
+.popup-row .value.ok { color: #2e7d32; }
+.popup-row .value.warn { color: #f57f17; }
+
+.popup-timeline { margin-top: 8px; }
+.popup-timeline .bar-bg { height: 6px; background: #e0e6ed; border-radius: 3px; overflow: hidden; }
+.popup-timeline .bar-fill { height: 100%; border-radius: 3px; }
+.popup-timeline .bar-fill.green { background: linear-gradient(90deg, #66bb6a, #2e7d32); }
+.popup-timeline .bar-fill.yellow { background: linear-gradient(90deg, #ffee58, #f9a825); }
+.popup-timeline .bar-fill.red { background: linear-gradient(90deg, #ef5350, #c62828); }
+.popup-timeline .bar-label { font-size: 0.65em; color: #90a4ae; margin-top: 3px; display: flex; justify-content: space-between; }
+
+.popup-pm { font-size: 0.72em; color: #5a6b7a; margin-top: 6px; }
+.popup-pm strong { color: #1a2332; }
+
+/* Legend */
+.map-legend { position: absolute; bottom: 20px; right: 20px; background: rgba(22,33,62,0.92); border-radius: 10px; padding: 12px 16px; z-index: 999; backdrop-filter: blur(4px); max-height: 280px; overflow-y: auto; }
+.map-legend h3 { font-size: 0.72em; color: #8899aa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.legend-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); flex-shrink: 0; }
+.legend-label { font-size: 0.7em; color: #ddd; }
+
+/* Summary panel */
+.summary-panel { position: absolute; z-index: 998; background: rgba(22,33,62,0.92); border-radius: 10px; padding: 12px 16px; top: 70px; left: 20px; backdrop-filter: blur(4px); }
+.summary-panel h3 { font-size: 0.72em; color: #8899aa; margin-bottom: 6px; text-transform: uppercase; }
+.summary-item { display: flex; justify-content: space-between; gap: 20px; padding: 3px 0; }
+.summary-item .sname { font-size: 0.72em; color: #ccc; }
+.summary-item .sval { font-size: 0.72em; color: #4fc3f7; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+<h1>תכנית דוד — מפת פרויקטים</h1>
+<div class="stats">
+<div class="stat"><div class="val">31</div><div class="lbl">פרויקטים</div></div>
+<div class="stat"><div class="val">3,688</div><div class="lbl">יח"ד</div></div>
+<div class="stat"><div class="val">11</div><div class="lbl">קבלנים</div></div>
+<div class="stat"><div class="val">483</div><div class="lbl">עובדים</div></div>
+</div>
+</div>
+
+<div id="map"></div>
+
+<div class="map-legend">
+<h3>קבלנים</h3>
+<div class="legend-row"><div class="legend-dot" style="background:#2e7d32;"></div><span class="legend-label">אשטרום</span></div>
+<div class="legend-row"><div class="legend-dot" style="background:#1565c0;"></div><span class="legend-label">דניה סיבוס</span></div>
+<div class="legend-row"><div class="legend-dot" style="background:#6a1b9a;"></div><span class="legend-label">מנרב</span></div>
+<div class="legend-row"><div class="legend-dot" style="background:#d32f2f;"></div><span class="legend-label">רוטשטיין</span></div>
+<div class="legend-row"><div class="legend-dot" style="background:#f57c00;"></div><span class="legend-label">פורמה</span></div>
+<div class="legend-row"><div class="legend-dot" style="background:#00838f;"></div><span class="legend-label">אלקטרה</span></div>
+<div class="legend-row"><div class="legend-dot" style="background:#283593;"></div><span class="legend-label">יעקבי</span></div>
+<div class="legend-row"><div class="legend-dot" style="background:#5d4037;"></div><span class="legend-label">הר סוף</span></div>
+<div class="legend-row"><div class="legend-dot" style="background:#ad1457;"></div><span class="legend-label">לוינשטיין</span></div>
+<div class="legend-row"><div class="legend-dot" style="background:#ff8f00;"></div><span class="legend-label">יצחקי / גבאי</span></div>
+</div>
+
+<div class="summary-panel">
+<h3>פיזור אזורי</h3>
+<div class="summary-item"><span class="sname">גוש דן / מרכז</span><span class="sval">18</span></div>
+<div class="summary-item"><span class="sname">ירושלים</span><span class="sval">4</span></div>
+<div class="summary-item"><span class="sname">שפלה / דרום</span><span class="sval">7</span></div>
+<div class="summary-item"><span class="sname">שרון / צפון</span><span class="sval">2</span></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const projects = [
+  { id:1, name:'עץ החיים ירושלים', client:'אשטרום', pm:'מאגד אבו שריף', desc:'מרתפים 7 קומות + 2 מגדלים 30 קומות', units:null, people:45, dueDate:'2028-03-31', lat:31.7820, lng:35.1950 },
+  { id:2, name:'מאז"ה', client:'אשטרום', pm:'באהה כאטר', desc:'מרתף 3 קומות, ביה"ס 5 קומות, מגדל 42 קומות 268 יח"ד', units:268, people:52, dueDate:'2028-06-30', lat:32.0650, lng:34.7750 },
+  { id:3, name:'חצרים', client:'מנרב', pm:'אייל פאטורי', desc:'מבנה הסעדה, הדרכה, מגורים ומתחם טכני', units:null, people:18, dueDate:'2027-09-30', lat:31.2340, lng:34.7270 },
+  { id:4, name:'קרסו וייצמן חולון', client:'דניה סיבוס', pm:'מרעי', desc:'מרתפים + 9 קומות 110 יח"ד', units:110, people:22, dueDate:'2027-12-31', lat:32.0160, lng:34.7730 },
+  { id:5, name:'קרסו הולצברג בת ים', client:'דניה סיבוס', pm:'מגד', desc:'2 בניינים 9 קומות 73 יח"ד', units:73, people:16, dueDate:'2027-08-31', lat:32.0190, lng:34.7510 },
+  { id:6, name:'גליל ים', client:'דניה סיבוס', pm:'משה', desc:'6 בניינים 11-12 קומות 253 יח"ד', units:253, people:38, dueDate:'2028-12-31', lat:32.1580, lng:34.7740 },
+  { id:7, name:'הר נוף ירושלים', client:'דניה סיבוס', pm:'יזיד אבו שריף', desc:'3 בניינים 9 קומות + 18 קומות 237 יח"ד', units:237, people:35, dueDate:'2028-06-30', lat:31.7770, lng:35.1730 },
+  { id:8, name:'שנקר חולון', client:'דניה סיבוס', pm:'מאגד', desc:'4 מרתפים, 4 בניינים 9 קומות 168 יח"ד', units:168, people:28, dueDate:'2028-03-31', lat:32.0200, lng:34.7800 },
+  { id:9, name:'מרלוג פוקס בית שמש', client:'דניה סיבוס', pm:'וואהל', desc:'שטח מסחרי', units:null, people:12, dueDate:'2027-06-30', lat:31.7470, lng:34.9920 },
+  { id:10, name:'עיר עולם', client:'דניה סיבוס', pm:'—', desc:'3 מגדלים 31 קומות 299 יח"ד', units:299, people:42, dueDate:'2029-06-30', lat:32.0550, lng:34.7850 },
+  { id:11, name:'חנקין חולון', client:'דניה סיבוס', pm:'—', desc:'מגדל 28 קומות 130 יח"ד + מסחרי', units:130, people:24, dueDate:'2028-09-30', lat:32.0120, lng:34.7770 },
+  { id:12, name:'עצמאות 28 בת ים', client:'לוינשטיין נתיב', pm:'אנס', desc:'מרתפים, מסחר, 5 קומות 120 יח"ד', units:120, people:20, dueDate:'2027-11-30', lat:32.0230, lng:34.7430 },
+  { id:13, name:'הרצל 66 בלו סיטי', client:'אשטרום', pm:'אנס', desc:'מגדל 35 קומות + 5 מרתפים 137 יח"ד', units:137, people:30, dueDate:'2028-09-30', lat:32.0210, lng:34.7460 },
+  { id:14, name:'מרים החשמונאית', client:'אשטרום', pm:'יזיד אבו שריף', desc:'4 בניינים 7 קומות 104 יח"ד', units:104, people:18, dueDate:'2027-12-31', lat:31.7850, lng:35.2050 },
+  { id:15, name:'פרויקט לוד', client:'יעקבי יוניברסל', pm:'סאמר', desc:'7 בניינים 232 יח"ד', units:232, people:30, dueDate:'2028-06-30', lat:31.9530, lng:34.8920 },
+  { id:16, name:'פרויקט פ"ת', client:'יעקבי יוניברסל', pm:'דובב', desc:'15 קומות 53 יח"ד', units:53, people:12, dueDate:'2027-10-31', lat:32.0890, lng:34.8870 },
+  { id:17, name:'הברון הירש', client:'פורמה', pm:'כרים', desc:'3 בניינים 2 מרתפים 134 יח"ד', units:134, people:22, dueDate:'2028-03-31', lat:32.0830, lng:34.8430 },
+  { id:18, name:'בת ים הפרדס', client:'פורמה', pm:'באהה כאטר', desc:'2 בניינים 15 קומות 123 יח"ד', units:123, people:20, dueDate:'2028-01-31', lat:32.0270, lng:34.7490 },
+  { id:19, name:'כפר אזר 123', client:'אלקטרה', pm:'אבו לאבן', desc:'2 בניינים + וילות 84 יח"ד', units:84, people:14, dueDate:'2027-09-30', lat:32.0600, lng:34.8400 },
+  { id:20, name:'כפר אזר 116', client:'אלקטרה', pm:'אבו לאבן', desc:'3 בניינים + וילות 88 יח"ד', units:88, people:14, dueDate:'2027-11-30', lat:32.0580, lng:34.8370 },
+  { id:21, name:'חרמון לוד', client:'רוטשטיין', pm:'סאמר', desc:'2 בניינים 10+18 קומות 138 יח"ד', units:138, people:22, dueDate:'2028-03-31', lat:31.9500, lng:34.8960 },
+  { id:22, name:'יבנה רמת השרון', client:'רוטשטיין', pm:'משה', desc:'6 בניינים 9 קומות 180 יח"ד', units:180, people:26, dueDate:'2028-06-30', lat:32.1460, lng:34.8380 },
+  { id:23, name:'כרמי הנדיב ק. מלאכי', client:'רוטשטיין', pm:'סאמר', desc:'4 בניינים 8-22 קומות 208 יח"ד', units:208, people:28, dueDate:'2028-09-30', lat:31.7330, lng:34.7470 },
+  { id:24, name:'מגרש 105', client:'הר סוף', pm:'וואהל', desc:'11 דירות', units:11, people:4, dueDate:'2027-03-31', lat:31.8530, lng:34.8380 },
+  { id:25, name:'קוטגים', client:'הר סוף', pm:'וואהל', desc:'21 יחידות', units:21, people:6, dueDate:'2027-05-31', lat:31.8510, lng:34.8360 },
+  { id:26, name:'מגרש 259 מזכרת בתיה', client:'הר סוף', pm:'וואהל', desc:'מזכרת בתיה', units:null, people:4, dueDate:'2027-06-30', lat:31.8490, lng:34.8400 },
+  { id:27, name:'מגרש 84 מזכרת בתיה', client:'הר סוף', pm:'וואהל', desc:'מזכרת בתיה', units:null, people:4, dueDate:'2027-04-30', lat:31.8470, lng:34.8420 },
+  { id:28, name:'מגרש 19-20 מסחרי', client:'הר סוף', pm:'וואהל', desc:'סופר רמי לוי 13,000 מ"ר', units:null, people:8, dueDate:'2027-08-31', lat:31.8550, lng:34.8350 },
+  { id:29, name:'מגרש 504 מסחרי', client:'הר סוף', pm:'וואהל', desc:'סופר + מסחרי 22,000 מ"ר', units:null, people:10, dueDate:'2027-10-31', lat:31.8560, lng:34.8320 },
+  { id:30, name:'מגדל לאון ת"א', client:'יצחקי מלונות', pm:'אולג', desc:'19 קומות מלון 238 חדרים', units:238, people:32, dueDate:'2028-12-31', lat:32.0640, lng:34.7690 },
+  { id:31, name:'לידו אשדוד', client:'קבוצת גבאי', pm:'אולג', desc:'105 דירות + 208 חדרי מלון', units:313, people:28, dueDate:'2029-03-31', lat:31.8050, lng:34.6380 },
+];
+
+function getClientColor(client) {
+  if (client.includes('אשטרום')) return '#2e7d32';
+  if (client.includes('דניה')) return '#1565c0';
+  if (client.includes('מנרב')) return '#6a1b9a';
+  if (client.includes('רוטשטיין')) return '#d32f2f';
+  if (client.includes('פורמה')) return '#f57c00';
+  if (client.includes('אלקטרה')) return '#00838f';
+  if (client.includes('יעקבי')) return '#283593';
+  if (client.includes('הר סוף')) return '#5d4037';
+  if (client.includes('לוינשטיין')) return '#ad1457';
+  if (client.includes('יצחקי')) return '#ff8f00';
+  if (client.includes('גבאי')) return '#6d4c41';
+  return '#455a64';
+}
+
+function getMarkerSize(units) {
+  if (!units) return 24;
+  if (units > 200) return 34;
+  if (units > 100) return 30;
+  if (units > 50) return 26;
+  return 22;
+}
+
+function formatHebrewDate(dateStr) {
+  const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const d = new Date(dateStr);
+  return `${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function getTimelineData(dueDate) {
+  const now = new Date();
+  const due = new Date(dueDate);
+  const totalDays = Math.round((due - new Date('2025-01-01')) / (1000*60*60*24));
+  const elapsedDays = Math.round((now - new Date('2025-01-01')) / (1000*60*60*24));
+  const pct = Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100)));
+  const monthsLeft = Math.max(0, Math.round((due - now) / (1000*60*60*24*30.44)));
+
+  let barClass = 'green';
+  let statusText = `${monthsLeft} חודשים לסיום`;
+  let valueClass = 'ok';
+  if (monthsLeft <= 6) { barClass = 'yellow'; valueClass = 'warn'; }
+  if (monthsLeft <= 3) { barClass = 'red'; statusText = 'דחוף — פחות מ-3 חודשים'; valueClass = 'urgent'; }
+  if (monthsLeft === 0) { statusText = 'עבר תאריך יעד'; }
+
+  return { pct, barClass, statusText, valueClass, monthsLeft };
+}
+
+function buildPopup(p) {
+  const tl = getTimelineData(p.dueDate);
+  const unitsRow = p.units ? `<div class="popup-row"><span class="label">יחידות דיור</span><span class="value">${p.units}</span></div>` : '';
+
+  return `
+    <div class="popup-title">${p.name}</div>
+    <div class="popup-client">${p.client}</div>
+    <div class="popup-desc">${p.desc}</div>
+    <div class="popup-data">
+      <div class="popup-row">
+        <span class="label">עובדים משויכים</span>
+        <span class="value">${p.people} עובדים</span>
+      </div>
+      ${unitsRow}
+      <div class="popup-row">
+        <span class="label">תאריך יעד</span>
+        <span class="value ${tl.valueClass}">${formatHebrewDate(p.dueDate)}</span>
+      </div>
+      <div class="popup-row">
+        <span class="label">סטטוס לו"ז</span>
+        <span class="value ${tl.valueClass}">${tl.statusText}</span>
+      </div>
+    </div>
+    <div class="popup-timeline">
+      <div class="bar-bg"><div class="bar-fill ${tl.barClass}" style="width:${tl.pct}%"></div></div>
+      <div class="bar-label"><span>התחלה</span><span>${formatHebrewDate(p.dueDate)}</span></div>
+    </div>
+    <div class="popup-pm">מנהל פרויקט: <strong>${p.pm}</strong></div>
+  `;
+}
+
+// Init map
+const map = L.map('map', { zoomControl: true }).setView([31.95, 34.82], 9);
+
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles &copy; Esri',
+  maxZoom: 19,
+}).addTo(map);
+
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19,
+  opacity: 0.7,
+}).addTo(map);
+
+// Add markers
+projects.forEach(p => {
+  const color = getClientColor(p.client);
+  const size = getMarkerSize(p.units);
+
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:${size}px; height:${size}px;
+      background:${color};
+      border-radius:50%;
+      border:3px solid rgba(255,255,255,0.9);
+      box-shadow:0 3px 10px rgba(0,0,0,0.5);
+      display:flex; align-items:center; justify-content:center;
+      font-size:${size > 28 ? '10' : '8'}px; font-weight:700; color:#fff;
+      cursor:pointer;
+    ">${p.people}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+  });
+
+  L.marker([p.lat, p.lng], { icon })
+    .addTo(map)
+    .bindPopup(buildPopup(p), { maxWidth: 280 });
+});
+
+const bounds = L.latLngBounds(projects.map(p => [p.lat, p.lng]));
+map.fitBounds(bounds, { padding: [40, 40] });
+</script>
+</body>
+</html>
