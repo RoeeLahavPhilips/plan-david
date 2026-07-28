@@ -23,6 +23,40 @@ body { font-family: 'Segoe UI', Tahoma, sans-serif; height: 100vh; display: flex
 .ss-dot.yellow { background: #fdd835; }
 .ss-dot.red { background: #e53935; }
 
+/* Tasks panel */
+.tasks-panel { background: #16213e; border-bottom: 1px solid #2a3a5a; flex-shrink: 0; z-index: 1000; max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+.tasks-panel.open { max-height: 320px; overflow-y: auto; }
+.tasks-inner { padding: 12px 20px; }
+.tasks-toggle { background: #0d1b2a; border: none; color: #4fc3f7; font-size: 0.8em; font-weight: 600; cursor: pointer; padding: 6px 20px; width: 100%; text-align: center; border-bottom: 1px solid #2a3a5a; font-family: inherit; z-index: 1001; position: relative; }
+.tasks-toggle:hover { background: #1a2d45; }
+
+.tasks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.tasks-header h2 { font-size: 0.9em; color: #fff; }
+.tasks-count { font-size: 0.7em; color: #4fc3f7; background: rgba(79,195,247,0.1); padding: 2px 8px; border-radius: 10px; }
+
+.task-input-row { display: flex; gap: 6px; margin-bottom: 10px; }
+.task-input-row input { flex: 1; padding: 8px 10px; background: #0d1b2a; border: 1px solid #2a3a5a; border-radius: 6px; color: #eee; font-size: 0.8em; font-family: inherit; }
+.task-input-row input:focus { outline: none; border-color: #4fc3f7; }
+.task-input-row input::placeholder { color: #5a6b7a; }
+.task-input-row select { padding: 8px; background: #0d1b2a; border: 1px solid #2a3a5a; border-radius: 6px; color: #eee; font-size: 0.8em; font-family: inherit; }
+.task-input-row button { padding: 8px 14px; background: #4fc3f7; color: #0d1b2a; border: none; border-radius: 6px; font-weight: 700; font-size: 0.8em; cursor: pointer; font-family: inherit; }
+.task-input-row button:hover { background: #81d4fa; }
+
+.task-list { list-style: none; max-height: 180px; overflow-y: auto; }
+.task-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; margin-bottom: 4px; background: rgba(255,255,255,0.03); transition: background 0.15s; }
+.task-item:hover { background: rgba(255,255,255,0.06); }
+.task-check { width: 16px; height: 16px; border: 2px solid #5a6b7a; border-radius: 3px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.task-check.done { background: #43a047; border-color: #43a047; }
+.task-check.done::after { content: "✓"; color: #fff; font-size: 0.65em; font-weight: 700; }
+.task-item.completed .task-text { text-decoration: line-through; color: #5a6b7a; }
+.task-text { flex: 1; font-size: 0.78em; color: #ddd; }
+.task-priority { font-size: 0.6em; padding: 2px 6px; border-radius: 8px; font-weight: 600; }
+.task-priority.high { background: rgba(229,57,53,0.2); color: #ef5350; }
+.task-priority.med { background: rgba(253,216,53,0.2); color: #fdd835; }
+.task-priority.low { background: rgba(67,160,71,0.2); color: #66bb6a; }
+.task-delete { font-size: 0.9em; color: #5a6b7a; cursor: pointer; padding: 2px 4px; border-radius: 3px; }
+.task-delete:hover { color: #ef5350; background: rgba(229,57,53,0.1); }
+
 #map { flex: 1; z-index: 1; }
 
 /* Popup */
@@ -128,6 +162,26 @@ body { font-family: 'Segoe UI', Tahoma, sans-serif; height: 100vh; display: flex
 <div class="stats">
 <div class="stat"><div class="val">31</div><div class="lbl">אתרים</div></div>
 <div class="stat"><div class="val" id="totalWorkers">—</div><div class="lbl">עובדים</div></div>
+</div>
+</div>
+
+<button class="tasks-toggle" onclick="toggleTasks()">▼ משימות מנכ"ל — לחץ לפתיחה</button>
+<div class="tasks-panel" id="tasksPanel">
+<div class="tasks-inner">
+<div class="tasks-header">
+<h2>משימות לביצוע</h2>
+<span class="tasks-count" id="tasksCount">0 פתוחות</span>
+</div>
+<div class="task-input-row">
+<input type="text" id="taskInput" placeholder="הוסף משימה חדשה..." onkeypress="if(event.key==='Enter')addTask()">
+<select id="taskPriority">
+<option value="high">דחוף</option>
+<option value="med">רגיל</option>
+<option value="low">נמוך</option>
+</select>
+<button onclick="addTask()">הוסף</button>
+</div>
+<ul class="task-list" id="taskList"></ul>
 </div>
 </div>
 
@@ -391,6 +445,81 @@ function buildPopup(p) {
     <div class="popup-pm">מנהל פרויקט: <strong>${p.pm}</strong></div>
   `;
 }
+
+// === TASKS SYSTEM ===
+const defaultTasks = [
+  { id: 1, text: 'להשיג דוח רווח והפסד (P&L) עדכני — חתך לפי פרויקט', priority: 'high', done: false },
+  { id: 2, text: 'לקבל דוח ניהול חודשי מכל מנהל פרויקט', priority: 'high', done: false },
+  { id: 3, text: 'לאשר תקציב 2026-2027 מול הנה"כ', priority: 'high', done: false },
+  { id: 4, text: 'לתאם ביקור באתרים אדומים — עץ החיים, גליל ים', priority: 'high', done: false },
+  { id: 5, text: 'מיפוי כ"א: כמה עובדים בפועל בכל אתר vs תכנון', priority: 'med', done: false },
+  { id: 6, text: 'לקבל רשימת ספקים קריטיים + סטטוס אספקת חומרים', priority: 'med', done: false },
+  { id: 7, text: 'לבדוק ערבויות פתוחות ותוקפן', priority: 'med', done: false },
+  { id: 8, text: 'ישיבת הנהלה ראשונה — לקבוע סדר יום', priority: 'high', done: false },
+  { id: 9, text: 'לבקש דוח בטיחות — אירועים ב-90 יום אחרונים', priority: 'med', done: false },
+  { id: 10, text: 'לזהות 5 בעיות שכולם מכירים ואף אחד לא פותר', priority: 'low', done: false },
+];
+
+let tasks = JSON.parse(localStorage.getItem('planDavid_tasks2') || 'null') || defaultTasks;
+let taskNextId = Math.max(...tasks.map(t => t.id)) + 1;
+
+function saveTasks() { localStorage.setItem('planDavid_tasks2', JSON.stringify(tasks)); }
+
+function toggleTasks() {
+  const panel = document.getElementById('tasksPanel');
+  const btn = document.querySelector('.tasks-toggle');
+  panel.classList.toggle('open');
+  btn.textContent = panel.classList.contains('open') ? '▲ משימות מנכ"ל — לחץ לסגירה' : '▼ משימות מנכ"ל — לחץ לפתיחה';
+}
+
+function addTask() {
+  const input = document.getElementById('taskInput');
+  const priority = document.getElementById('taskPriority').value;
+  const text = input.value.trim();
+  if (!text) return;
+  tasks.unshift({ id: taskNextId++, text, priority, done: false });
+  input.value = '';
+  saveTasks();
+  renderTasks();
+}
+
+function toggleTask(id) {
+  const t = tasks.find(x => x.id === id);
+  if (t) t.done = !t.done;
+  saveTasks();
+  renderTasks();
+}
+
+function deleteTask(id) {
+  tasks = tasks.filter(t => t.id !== id);
+  saveTasks();
+  renderTasks();
+}
+
+function renderTasks() {
+  const list = document.getElementById('taskList');
+  const openCount = tasks.filter(t => !t.done).length;
+  document.getElementById('tasksCount').textContent = `${openCount} פתוחות`;
+
+  const sorted = [...tasks].sort((a,b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    const pOrder = { high: 0, med: 1, low: 2 };
+    return pOrder[a.priority] - pOrder[b.priority];
+  });
+
+  list.innerHTML = sorted.map(t => {
+    const pLabel = t.priority === 'high' ? 'דחוף' : t.priority === 'med' ? 'רגיל' : 'נמוך';
+    return `
+      <li class="task-item ${t.done ? 'completed' : ''}">
+        <div class="task-check ${t.done ? 'done' : ''}" onclick="toggleTask(${t.id})"></div>
+        <span class="task-text">${t.text}</span>
+        <span class="task-priority ${t.priority}">${pLabel}</span>
+        <span class="task-delete" onclick="deleteTask(${t.id})">×</span>
+      </li>`;
+  }).join('');
+}
+
+renderTasks();
 
 // Load user state from localStorage
 const userState = JSON.parse(localStorage.getItem('planDavid_mapState') || '{}');
